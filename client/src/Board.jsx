@@ -164,7 +164,7 @@ export default function Board({ user, onLogout }) {
     <div className="ado">
       <header className="ado-topbar">
         <div className="ado-topbar-left">
-          <span className="ado-logo">{Icon.logo} Azure DevOps</span>
+          <span className="ado-logo">{Icon.logo} Incedo Client Prep</span>
           <span className="ado-org">himanshuparihar</span>
         </div>
         <div className="ado-topbar-right">

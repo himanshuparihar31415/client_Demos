@@ -31,7 +31,7 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit} autoComplete="off">
-        <div className="login-brand">{logo} Azure DevOps</div>
+        <div className="login-brand">{logo} Incedo Client Prep</div>
         <h1>Sign in</h1>
 
         {error && <div className="ado-msgbar error"><span className="bar-icon">⚠</span><div>{error}</div></div>}
