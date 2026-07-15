@@ -139,7 +139,7 @@ export default function Board({ user, onLogout }) {
   }
 
   async function remove(id) {
-    if (!confirm('Remove this work item from the board?')) return;
+    if (!confirm('Remove this demo from the tracker?')) return;
     try {
       await api.deleteEntry(id);
       await load();
@@ -176,27 +176,27 @@ export default function Board({ user, onLogout }) {
       <div className="ado-body">
         <nav className="ado-sidebar">
           <div className="ado-project">
-            <div className="ado-project-icon">D</div>
-            <div className="ado-project-name">Demos &amp; Pilots</div>
+            <div className="ado-project-icon">C</div>
+            <div className="ado-project-name">Client Demos &amp; Prep</div>
           </div>
           <ul className="ado-nav">
             <li>{Icon.overview} Overview</li>
-            <li className="active">{Icon.boards} Boards</li>
-            <li>{Icon.repos} Repos</li>
-            <li>{Icon.pipelines} Pipelines</li>
-            <li>{Icon.test} Test Plans</li>
+            <li className="active">{Icon.boards} Demos &amp; Pilots</li>
+            <li>{Icon.repos} Clients</li>
+            <li>{Icon.pipelines} Calendar</li>
+            <li>{Icon.test} Reports</li>
           </ul>
           <button className="ado-signout" onClick={signOut}>Sign out — {user}</button>
         </nav>
 
         <main className="ado-content">
-          <div className="ado-breadcrumb">Boards <span>/</span> <b>Work Items</b></div>
-          <h1 className="ado-title">Work Items</h1>
+          <div className="ado-breadcrumb">Client Prep <span>/</span> <b>Demos &amp; Pilots</b></div>
+          <h1 className="ado-title">Demos &amp; Pilots</h1>
 
           <div className="ado-commandbar">
-            <button className="ado-btn-primary" onClick={openNew}>+ New Work Item</button>
+            <button className="ado-btn-primary" onClick={openNew}>+ New Demo</button>
             <span className="ado-count">
-              {entries.length} {entries.length === 1 ? 'item' : 'items'}
+              {entries.length} {entries.length === 1 ? 'demo' : 'demos'}
             </span>
           </div>
 
@@ -229,18 +229,18 @@ export default function Board({ user, onLogout }) {
           <div className="ado-grid">
             <div className="ado-grid-head">
               <div>ID</div>
-              <div>Title</div>
-              <div>State</div>
-              <div>Work Item Type</div>
-              <div>Target Date</div>
-              <div>Assigned To</div>
+              <div>Client</div>
+              <div>Status</div>
+              <div>Type</div>
+              <div>Demo Date</div>
+              <div>Owner</div>
               <div></div>
             </div>
 
             {loading ? (
-              <div className="empty">Loading work items…</div>
+              <div className="empty">Loading demos…</div>
             ) : sorted.length === 0 ? (
-              <div className="empty">No work items yet. Create your first one.</div>
+              <div className="empty">No demos tracked yet. Add your first one.</div>
             ) : (
               sorted.map((e, i) => {
                 const du = daysUntil(e.date);
@@ -296,12 +296,12 @@ export default function Board({ user, onLogout }) {
         >
           <form className="panel" onSubmit={save}>
             <div className="panel-head">
-              <h2>{editId ? 'Edit Work Item' : 'New Work Item'}</h2>
+              <h2>{editId ? 'Edit Demo' : 'New Demo'}</h2>
               <button type="button" className="panel-close" onClick={() => setPanelOpen(false)}>✕</button>
             </div>
             <div className="panel-body">
               <div className="field">
-                <label>Client / Title</label>
+                <label>Client</label>
                 <input
                   value={form.client}
                   onChange={(e) => setForm({ ...form, client: e.target.value })}
@@ -310,7 +310,7 @@ export default function Board({ user, onLogout }) {
                 />
               </div>
               <div className="field">
-                <label>Work Item Type</label>
+                <label>Type</label>
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option>Demo</option>
                   <option>Pilot</option>
@@ -318,11 +318,11 @@ export default function Board({ user, onLogout }) {
                 </select>
               </div>
               <div className="field">
-                <label>Target Date (blank if TBD)</label>
+                <label>Demo Date (blank if TBD)</label>
                 <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               </div>
               <div className="field">
-                <label>State</label>
+                <label>Status</label>
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option>Scheduled</option>
                   <option>Completed</option>
@@ -331,7 +331,7 @@ export default function Board({ user, onLogout }) {
                 </select>
               </div>
               <div className="field">
-                <label>Assigned To</label>
+                <label>Owner / Presenter</label>
                 <input
                   value={form.owner}
                   onChange={(e) => setForm({ ...form, owner: e.target.value })}
@@ -339,7 +339,7 @@ export default function Board({ user, onLogout }) {
                 />
               </div>
               <div className="field">
-                <label>Discussion / Notes</label>
+                <label>Prep Notes</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
