@@ -1,40 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
+import { daysUntil, initials, TYPES, STATUSES } from './utils.js';
+import Overview from './Overview.jsx';
+import BoardGrid from './BoardGrid.jsx';
+import CalendarView from './CalendarView.jsx';
 
 const EMPTY = { client: '', type: 'Demo', date: '', status: 'Scheduled', owner: '', notes: '' };
 
-function statusClass(s) {
-  return 'status-' + ((s || '').toLowerCase().split(' ')[0].split('/')[0].trim() || 'pending');
-}
-
-function typeIconClass(t) {
-  const k = (t || '').toLowerCase();
-  if (k.startsWith('pilot')) return 'wi-type-pilot';
-  if (k.startsWith('internal')) return 'wi-type-internal';
-  return 'wi-type-demo';
-}
-
-function fmtDate(d) {
-  if (!d) return 'TBD';
-  const dt = new Date(d + 'T00:00:00');
-  if (isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function daysUntil(d) {
-  if (!d) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dt = new Date(d + 'T00:00:00');
-  if (isNaN(dt)) return null;
-  return Math.round((dt - today) / 86400000);
-}
-
-function initials(name) {
-  return (name || '?').trim().slice(0, 2);
-}
-
-// --- tiny inline icons (Azure DevOps-ish) ---
 const Icon = {
   logo: (
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 5.5v10.7l-4.4 3.6-6.8-2.5v2.4L6.1 22 3 15.4V8.9l3.7-1.5L12 2l9 3.5zM6.1 8.9v6.2l4.7 1.7V6.5L6.1 8.9zm5.9-2.6l6 2.2v6.9l-6 .6V6.3z"/></svg>
@@ -45,15 +17,15 @@ const Icon = {
   boards: (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="2" y="2" width="12" height="12"/><line x1="6" y1="2" x2="6" y2="14"/><line x1="10" y1="2" x2="10" y2="14"/></svg>
   ),
-  repos: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M4 2h8v12H4z"/><path d="M4 11h8"/></svg>
+  calendar: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><rect x="2" y="3" width="12" height="11" rx="1"/><line x1="2" y1="6" x2="14" y2="6"/><line x1="5" y1="1.5" x2="5" y2="4"/><line x1="11" y1="1.5" x2="11" y2="4"/></svg>
   ),
-  pipelines: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="4" cy="4" r="2"/><circle cx="12" cy="12" r="2"/><path d="M6 4h4a2 2 0 0 1 2 2v4"/></svg>
-  ),
-  test: (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3"><path d="M6 2v4L3 13a1 1 0 0 0 1 1.5h8A1 1 0 0 0 13 13l-3-7V2"/><line x1="5" y1="2" x2="11" y2="2"/></svg>
-  ),
+};
+
+const VIEWS = {
+  overview: { title: 'Overview', crumb: 'Overview' },
+  board: { title: 'Demos & Pilots', crumb: 'Demos & Pilots' },
+  calendar: { title: 'Calendar', crumb: 'Calendar' },
 };
 
 export default function Board({ user, onLogout }) {
@@ -64,6 +36,7 @@ export default function Board({ user, onLogout }) {
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [view, setView] = useState('overview');
 
   useEffect(() => {
     load();
@@ -103,9 +76,9 @@ export default function Board({ user, onLogout }) {
     return { upcoming: up, overdue: od };
   }, [sorted]);
 
-  function openNew() {
+  function openNew(prefillDate) {
     setEditId(null);
-    setForm(EMPTY);
+    setForm({ ...EMPTY, date: typeof prefillDate === 'string' ? prefillDate : '' });
     setPanelOpen(true);
   }
 
@@ -139,7 +112,7 @@ export default function Board({ user, onLogout }) {
   }
 
   async function remove(id) {
-    if (!confirm('Remove this demo from the tracker?')) return;
+    if (!confirm('Remove this activity from the tracker?')) return;
     try {
       await api.deleteEntry(id);
       await load();
@@ -159,6 +132,12 @@ export default function Board({ user, onLogout }) {
   const clock = now.toLocaleDateString('en-GB', {
     weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
   });
+
+  const navItem = (key, icon, label) => (
+    <li className={view === key ? 'active' : ''} onClick={() => setView(key)}>
+      {icon} {label}
+    </li>
+  );
 
   return (
     <div className="ado">
@@ -180,27 +159,29 @@ export default function Board({ user, onLogout }) {
             <div className="ado-project-name">Client Demos &amp; Prep</div>
           </div>
           <ul className="ado-nav">
-            <li>{Icon.overview} Overview</li>
-            <li className="active">{Icon.boards} Demos &amp; Pilots</li>
-            <li>{Icon.repos} Clients</li>
-            <li>{Icon.pipelines} Calendar</li>
-            <li>{Icon.test} Reports</li>
+            {navItem('overview', Icon.overview, 'Overview')}
+            {navItem('board', Icon.boards, 'Demos & Pilots')}
+            {navItem('calendar', Icon.calendar, 'Calendar')}
           </ul>
           <button className="ado-signout" onClick={signOut}>Sign out — {user}</button>
         </nav>
 
         <main className="ado-content">
-          <div className="ado-breadcrumb">Client Prep <span>/</span> <b>Demos &amp; Pilots</b></div>
-          <h1 className="ado-title">Demos &amp; Pilots</h1>
+          <div className="ado-breadcrumb">Client Prep <span>/</span> <b>{VIEWS[view].crumb}</b></div>
+          <h1 className="ado-title">{VIEWS[view].title}</h1>
 
           <div className="ado-commandbar">
-            <button className="ado-btn-primary" onClick={openNew}>+ New Demo</button>
+            <button className="ado-btn-primary" onClick={() => openNew()}>+ New Activity</button>
             <span className="ado-count">
-              {entries.length} {entries.length === 1 ? 'demo' : 'demos'}
+              {entries.length} {entries.length === 1 ? 'activity' : 'activities'}
             </span>
           </div>
 
-          {(upcoming.length > 0 || overdue.length > 0) && (
+          {err && (
+            <div className="ado-msgbar error"><span className="bar-icon">⚠</span><div>{err}</div></div>
+          )}
+
+          {view === 'board' && (upcoming.length > 0 || overdue.length > 0) && (
             <div className="ado-msgbar info">
               <span className="bar-icon">ⓘ</span>
               <div>
@@ -222,68 +203,9 @@ export default function Board({ user, onLogout }) {
             </div>
           )}
 
-          {err && (
-            <div className="ado-msgbar error"><span className="bar-icon">⚠</span><div>{err}</div></div>
-          )}
-
-          <div className="ado-grid">
-            <div className="ado-grid-head">
-              <div>ID</div>
-              <div>Client</div>
-              <div>Status</div>
-              <div>Type</div>
-              <div>Demo Date</div>
-              <div>Owner</div>
-              <div></div>
-            </div>
-
-            {loading ? (
-              <div className="empty">Loading demos…</div>
-            ) : sorted.length === 0 ? (
-              <div className="empty">No demos tracked yet. Add your first one.</div>
-            ) : (
-              sorted.map((e, i) => {
-                const du = daysUntil(e.date);
-                const overdueDate = du !== null && du < 0 && e.status.toLowerCase() !== 'completed';
-                let dateLabel = fmtDate(e.date);
-                if (du === 0) dateLabel += ' · today';
-                else if (du > 0 && du <= 5) dateLabel += ` · in ${du}d`;
-                else if (overdueDate) dateLabel += ' · overdue';
-                return (
-                  <div className="ado-row" key={e.id}>
-                    <div className="ado-id">#{i + 1}</div>
-                    <div className="wi-title">
-                      <span className={'wi-type-icon ' + typeIconClass(e.type)} />
-                      <span className="name" onClick={() => openEdit(e)}>{e.client}</span>
-                    </div>
-                    <div>
-                      <span className={'state ' + statusClass(e.status)}>
-                        <span className="state-dot" />
-                        {e.status}
-                      </span>
-                    </div>
-                    <div>{e.type}</div>
-                    <div className={overdueDate ? 'date-overdue' : ''}>{dateLabel}</div>
-                    <div>
-                      {e.owner ? (
-                        <span className="owner-avatar">
-                          <span className="oa">{initials(e.owner)}</span>
-                          {e.owner}
-                        </span>
-                      ) : (
-                        <span className="muted">Unassigned</span>
-                      )}
-                    </div>
-                    <div className="row-actions">
-                      <button className="icon-btn" title="Edit" onClick={() => openEdit(e)}>✎</button>
-                      <button className="icon-btn" title="Delete" onClick={() => remove(e.id)}>✕</button>
-                    </div>
-                    {e.notes && <div className="notes-row">{e.notes}</div>}
-                  </div>
-                );
-              })
-            )}
-          </div>
+          {view === 'overview' && <Overview entries={sorted} onEdit={openEdit} onRemove={remove} />}
+          {view === 'board' && <BoardGrid entries={sorted} loading={loading} onEdit={openEdit} onRemove={remove} />}
+          {view === 'calendar' && <CalendarView entries={sorted} onEdit={openEdit} onNewOnDate={(d) => openNew(d)} />}
 
           <div className="ado-foot">Data saved on the server · shared across browsers</div>
         </main>
@@ -296,7 +218,7 @@ export default function Board({ user, onLogout }) {
         >
           <form className="panel" onSubmit={save}>
             <div className="panel-head">
-              <h2>{editId ? 'Edit Demo' : 'New Demo'}</h2>
+              <h2>{editId ? 'Edit Activity' : 'New Activity'}</h2>
               <button type="button" className="panel-close" onClick={() => setPanelOpen(false)}>✕</button>
             </div>
             <div className="panel-body">
@@ -312,22 +234,17 @@ export default function Board({ user, onLogout }) {
               <div className="field">
                 <label>Type</label>
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                  <option>Demo</option>
-                  <option>Pilot</option>
-                  <option>Internal / Automation</option>
+                  {TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div className="field">
-                <label>Demo Date (blank if TBD)</label>
+                <label>Date (blank if TBD)</label>
                 <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
               </div>
               <div className="field">
                 <label>Status</label>
                 <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                  <option>Scheduled</option>
-                  <option>Completed</option>
-                  <option>Pending</option>
-                  <option>Requested</option>
+                  {STATUSES.map((s) => <option key={s}>{s}</option>)}
                 </select>
               </div>
               <div className="field">
