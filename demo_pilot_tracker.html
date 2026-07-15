@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Departures — Demos &amp; Pilots</title>
+<style>
+  :root{
+    --board-bg: #f7f8f7;
+    --board-bg-alt: #ffffff;
+    --panel: #ffffff;
+    --ink: #1c2622;
+    --ink-dim: #6b7772;
+    --amber: #c07a1e;
+    --amber-soft: #f6ead6;
+    --amber-line: #e6c98f;
+    --sage: #3f7d54;
+    --sage-soft: #e6f1ea;
+    --rust: #b04a2f;
+    --rust-soft: #f6e3dd;
+    --neutral-soft: #eef0ef;
+    --line: #e2e6e4;
+    --line-strong: #cdd4d1;
+    --shadow: 0 1px 2px rgba(28,38,34,0.06), 0 8px 24px rgba(28,38,34,0.05);
+    --mono: "Courier New", Courier, monospace;
+    --display: Georgia, "Times New Roman", serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--board-bg);
+    color:var(--ink);
+    font-family:var(--mono);
+    padding:28px 20px 60px;
+    min-height:100vh;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+
+  .masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:3px double var(--line-strong);
+    padding-bottom:14px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .masthead h1{
+    font-family:var(--display);
+    font-size:28px;
+    letter-spacing:0.5px;
+    margin:0;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .masthead .sub{
+    font-size:11px;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    margin-top:4px;
+  }
+  .clock{
+    font-size:12px;
+    color:var(--amber);
+    letter-spacing:1px;
+    text-align:right;
+  }
+
+  .board-alert{
+    background:var(--amber-soft);
+    border:1px solid var(--amber-line);
+    border-left:4px solid var(--amber);
+    padding:12px 16px;
+    margin-bottom:22px;
+    font-size:13px;
+    line-height:1.7;
+    border-radius:4px;
+    display:none;
+  }
+  .board-alert.show{display:block;}
+  .board-alert b{color:var(--amber);}
+  .board-alert .row{display:flex;gap:8px;flex-wrap:wrap;}
+  .board-alert .chip{
+    background:var(--amber-line);
+    color:#5a3d10;
+    padding:2px 8px;
+    border-radius:2px;
+    font-size:12px;
+  }
+
+  .toolbar{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;
+  }
+  .toolbar .count{font-size:11px;color:var(--ink-dim);letter-spacing:1px;text-transform:uppercase;}
+  button.add-btn{
+    background:var(--amber);
+    color:#fff;
+    border:none;
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:1px;
+    padding:10px 18px;
+    cursor:pointer;
+    border-radius:2px;
+    text-transform:uppercase;
+  }
+  button.add-btn:hover{background:#a9691a;}
+
+  .board{border:1px solid var(--line);background:var(--board-bg-alt);border-radius:4px;box-shadow:var(--shadow);overflow:hidden;}
+  .board-head{
+    display:grid;
+    grid-template-columns: 26px 1.3fr 1fr 1fr 1fr 1fr 30px;
+    gap:0;
+    padding:10px 14px;
+    font-size:10px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--ink-dim);
+    background:var(--board-bg);
+    border-bottom:1px solid var(--line);
+  }
+  .flap-row{
+    display:grid;
+    grid-template-columns: 26px 1.3fr 1fr 1fr 1fr 1fr 30px;
+    align-items:center;
+    padding:12px 14px;
+    border-bottom:1px solid var(--line);
+    font-size:13.5px;
+    gap:0;
+    transition:background 0.15s;
+  }
+  .flap-row:hover{background:var(--board-bg);}
+  .flap-row:last-child{border-bottom:none;}
+  .flap-row .idx{color:var(--ink-dim);font-size:12px;}
+  .flap-row .client{font-weight:700;letter-spacing:0.3px;}
+  .flap-row .notes{
+    grid-column:2 / span 6;
+    color:var(--ink-dim);
+    font-size:12px;
+    padding:6px 0 2px 0;
+    display:none;
+    border-top:1px dashed var(--line-strong);
+    margin-top:8px;
+  }
+  .flap-row .notes.show{display:block;}
+
+  .status-pill{
+    display:inline-block;
+    padding:3px 9px;
+    font-size:10.5px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    border-radius:2px;
+    border:1px solid transparent;
+  }
+  .status-completed{color:var(--sage);border-color:#bcd8c6;background:var(--sage-soft);}
+  .status-scheduled{color:var(--amber);border-color:var(--amber-line);background:var(--amber-soft);}
+  .status-pending{color:var(--rust);border-color:#e4b6a9;background:var(--rust-soft);}
+  .status-requested{color:var(--ink-dim);border-color:var(--line-strong);background:var(--neutral-soft);}
+
+  .row-actions{display:flex;gap:6px;justify-content:flex-end;}
+  .icon-btn{
+    background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:14px;padding:2px 4px;
+    font-family:var(--mono);
+  }
+  .icon-btn:hover{color:var(--amber);}
+
+  .empty{padding:40px;text-align:center;color:var(--ink-dim);font-size:13px;}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;background:rgba(28,38,34,0.35);
+    display:none;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--line);
+    width:100%;max-width:440px;padding:24px;border-radius:6px;
+    border-top:3px solid var(--amber);
+    box-shadow:0 20px 60px rgba(28,38,34,0.25);
+  }
+  .modal h2{
+    font-family:var(--display);font-size:19px;margin:0 0 16px 0;color:var(--ink);
+  }
+  .field{margin-bottom:13px;}
+  .field label{
+    display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--ink-dim);margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%;background:#fff;border:1px solid var(--line-strong);
+    color:var(--ink);font-family:var(--mono);font-size:13px;padding:9px 10px;border-radius:2px;
+  }
+  .field textarea{resize:vertical;min-height:56px;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--amber);outline-offset:-1px;border-color:var(--amber);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+  .btn-ghost{
+    background:#fff;border:1px solid var(--line-strong);color:var(--ink-dim);
+    font-family:var(--mono);padding:9px 16px;cursor:pointer;border-radius:2px;font-size:12px;
+  }
+  .btn-ghost:hover{background:var(--board-bg);}
+  .btn-solid{
+    background:var(--amber);border:none;color:#fff;font-weight:700;
+    font-family:var(--mono);padding:9px 16px;cursor:pointer;border-radius:2px;font-size:12px;
+  }
+  .btn-solid:hover{background:#a9691a;}
+  .btn-danger{color:var(--rust);}
+
+  .foot-note{margin-top:16px;font-size:10.5px;color:var(--ink-dim);text-align:center;letter-spacing:0.5px;}
+
+  @media (max-width:720px){
+    .board-head{display:none;}
+    .flap-row{grid-template-columns:1fr;gap:6px;padding:14px;}
+    .flap-row .idx{display:none;}
+    .row-actions{justify-content:flex-start;}
+    .flap-row .notes{grid-column:1;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>Departures</h1>
+      <div class="sub">Client Demos &amp; Pilots Board</div>
+    </div>
+    <div class="clock" id="clockLine"></div>
+  </div>
+
+  <div class="board-alert" id="alertBox">
+    <div><b>▲ Upcoming</b> — next 5 days</div>
+    <div class="row" id="alertChips"></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="count" id="entryCount">0 entries on the board</div>
+    <button class="add-btn" onclick="openModal()">+ New Entry</button>
+  </div>
+
+  <div class="board">
+    <div class="board-head">
+      <div>#</div>
+      <div>Client</div>
+      <div>Type</div>
+      <div>Date</div>
+      <div>Status</div>
+      <div>Owner</div>
+      <div></div>
+    </div>
+    <div id="rows"></div>
+  </div>
+
+  <div class="foot-note" id="storageNote">Loading board…</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">New Entry</h2>
+    <input type="hidden" id="editId">
+    <div class="field">
+      <label>Client Name</label>
+      <input id="fClient" placeholder="e.g. Syneos">
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="fType">
+        <option>Demo</option>
+        <option>Pilot</option>
+        <option>Internal / Automation</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Date (or leave blank if TBD)</label>
+      <input id="fDate" type="date">
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <select id="fStatus">
+        <option>Scheduled</option>
+        <option>Completed</option>
+        <option>Pending</option>
+        <option>Requested</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Owner / Presenter</label>
+      <input id="fOwner" placeholder="e.g. Ujjwal">
+    </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="fNotes" placeholder="Any context worth remembering"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-solid" onclick="saveEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'entries:board';
+let entries = [];
+
+const seed = [
+  {id:'1', client:'A10', type:'Demo', date:'2026-07-10', status:'Completed', owner:'Ujjwal', notes:'First conversation happened on 10th July; demo also given same day.'},
+  {id:'2', client:'Syneos', type:'Demo', date:'2026-07-20', status:'Scheduled', owner:'', notes:''},
+  {id:'3', client:'Seven Eleven', type:'Demo', date:'2026-07-26', status:'Scheduled', owner:'', notes:''},
+  {id:'4', client:'US Bank', type:'Demo', date:'', status:'Pending', owner:'', notes:'ETA not available yet.'},
+  {id:'5', client:'Legrand', type:'Internal / Automation', date:'', status:'Requested', owner:'', notes:'Wants an automation pipeline for creating test plans.'},
+];
+
+function statusClass(s){
+  return 'status-' + ((s||'').toLowerCase().split(' ')[0].split('/')[0].trim() || 'pending');
+}
+
+function fmtDate(d){
+  if(!d) return 'TBD';
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+function daysUntil(d){
+  if(!d) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dt = new Date(d + 'T00:00:00');
+  if(isNaN(dt)) return null;
+  return Math.round((dt - today) / 86400000);
+}
+
+function loadEntries(){
+  const noteEl = document.getElementById('storageNote');
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      entries = JSON.parse(raw);
+    } else {
+      entries = seed;
+      persist();
+    }
+    noteEl.textContent = 'Saved locally in this browser.';
+  }catch(e){
+    entries = seed;
+    noteEl.textContent = 'Storage unavailable — running with sample data only (changes won\'t be saved).';
+  }
+  render();
+}
+
+function persist(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+}
+
+function render(){
+  const rowsEl = document.getElementById('rows');
+  const countEl = document.getElementById('entryCount');
+  countEl.textContent = entries.length + (entries.length === 1 ? ' entry on the board' : ' entries on the board');
+
+  const sorted = [...entries].sort((a,b)=>{
+    if(!a.date) return 1;
+    if(!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+
+  if(sorted.length === 0){
+    rowsEl.innerHTML = '<div class="empty">Nothing on the board yet. Add your first entry.</div>';
+  } else {
+    rowsEl.innerHTML = sorted.map((e, i) => {
+      const du = daysUntil(e.date);
+      let dateLabel = fmtDate(e.date);
+      if(du !== null){
+        if(du === 0) dateLabel += '  · today';
+        else if(du > 0 && du <= 5) dateLabel += '  · in ' + du + 'd';
+        else if(du < 0 && e.status.toLowerCase() !== 'completed') dateLabel += '  · overdue';
+      }
+      return `
+        <div class="flap-row" data-id="${e.id}">
+          <div class="idx">${String(i+1).padStart(2,'0')}</div>
+          <div class="client">${escapeHtml(e.client)}</div>
+          <div>${escapeHtml(e.type)}</div>
+          <div>${dateLabel}</div>
+          <div><span class="status-pill ${statusClass(e.status)}">${escapeHtml(e.status)}</span></div>
+          <div>${escapeHtml(e.owner) || '—'}</div>
+          <div class="row-actions">
+            <button class="icon-btn" title="Edit" onclick="openModal('${e.id}')">✎</button>
+            <button class="icon-btn" title="Delete" onclick="deleteEntry('${e.id}')">✕</button>
+          </div>
+          ${e.notes ? `<div class="notes show">${escapeHtml(e.notes)}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  renderAlerts(sorted);
+  renderClock();
+}
+
+function renderAlerts(list){
+  const box = document.getElementById('alertBox');
+  const chipsEl = document.getElementById('alertChips');
+  const upcoming = list.filter(e => {
+    const du = daysUntil(e.date);
+    return du !== null && du >= 0 && du <= 5 && e.status.toLowerCase() !== 'completed';
+  });
+  const overdue = list.filter(e => {
+    const du = daysUntil(e.date);
+    return du !== null && du < 0 && e.status.toLowerCase() !== 'completed';
+  });
+
+  if(upcoming.length === 0 && overdue.length === 0){
+    box.classList.remove('show');
+    return;
+  }
+  box.classList.add('show');
+  let chips = '';
+  overdue.forEach(e => {
+    chips += `<span class="chip" style="background:#e4b6a9;color:#5a2114">${escapeHtml(e.client)} — overdue</span>`;
+  });
+  upcoming.forEach(e => {
+    const du = daysUntil(e.date);
+    const label = du === 0 ? 'today' : `in ${du}d`;
+    chips += `<span class="chip">${escapeHtml(e.client)} — ${label}</span>`;
+  });
+  chipsEl.innerHTML = chips;
+}
+
+function renderClock(){
+  const el = document.getElementById('clockLine');
+  const now = new Date();
+  el.textContent = now.toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function openModal(id){
+  document.getElementById('editId').value = id || '';
+  document.getElementById('modalTitle').textContent = id ? 'Edit Entry' : 'New Entry';
+  if(id){
+    const e = entries.find(x => x.id === id);
+    document.getElementById('fClient').value = e.client;
+    document.getElementById('fType').value = e.type;
+    document.getElementById('fDate').value = e.date || '';
+    document.getElementById('fStatus').value = e.status;
+    document.getElementById('fOwner').value = e.owner || '';
+    document.getElementById('fNotes').value = e.notes || '';
+  } else {
+    document.getElementById('fClient').value = '';
+    document.getElementById('fType').value = 'Demo';
+    document.getElementById('fDate').value = '';
+    document.getElementById('fStatus').value = 'Scheduled';
+    document.getElementById('fOwner').value = '';
+    document.getElementById('fNotes').value = '';
+  }
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function saveEntry(){
+  const id = document.getElementById('editId').value;
+  const client = document.getElementById('fClient').value.trim();
+  if(!client){ alert('Client name is required.'); return; }
+
+  const data = {
+    client,
+    type: document.getElementById('fType').value,
+    date: document.getElementById('fDate').value,
+    status: document.getElementById('fStatus').value,
+    owner: document.getElementById('fOwner').value.trim(),
+    notes: document.getElementById('fNotes').value.trim(),
+  };
+
+  if(id){
+    const idx = entries.findIndex(x => x.id === id);
+    entries[idx] = {...entries[idx], ...data};
+  } else {
+    entries.push({id: Date.now().toString(), ...data});
+  }
+  persist();
+  closeModal();
+  render();
+}
+
+function deleteEntry(id){
+  if(!confirm('Remove this entry from the board?')) return;
+  entries = entries.filter(x => x.id !== id);
+  persist();
+  render();
+}
+
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'overlay') closeModal();
+});
+
+loadEntries();
+setInterval(renderClock, 60000);
+</script>
+</body>
+</html>
