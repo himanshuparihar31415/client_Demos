@@ -4,8 +4,8 @@ A tracker for client demos & pilots — Azure DevOps-style UI.
 
 - **Frontend:** React SPA (Vite) — served as static files.
 - **Backend:** Express running as a **Vercel serverless function** under `/api`.
-- **Database:** **Turso** (libSQL) — SQLite-compatible, works as a local file in dev and over HTTP in production.
-- **Auth:** bcrypt-hashed passwords + a stateless **JWT stored in an httpOnly cookie** (works on serverless — no session store needed).
+- **Data:** a single lightweight JSON store — a plain **file** (`data/store.json`) in local dev, and Vercel's free **KV store** in production (Vercel has no writable disk).
+- **Auth:** two demo users baked into the code (bcrypt-hashed) + a stateless **JWT in an httpOnly cookie**. No database needed for login.
 
 ## Repo layout
 
@@ -13,7 +13,7 @@ A tracker for client demos & pilots — Azure DevOps-style UI.
 client_Demos/
 ├── api/                 Serverless Express app (Vercel functions)
 │   ├── index.js         routes: auth + entries CRUD (exported Express app)
-│   └── db.js            libSQL client, schema, seeding
+│   └── store.js         light entries store: JSON file (dev) / Vercel KV (prod)
 ├── client/              React SPA (Vite)  ->  builds to client/dist
 ├── dev-server.js        local runner (hosts api/ on :3001, serves client/dist)
 ├── vercel.json          build command, output dir, /api rewrite
@@ -22,19 +22,21 @@ client_Demos/
 
 ## Local development
 
+No accounts, no database — entries are stored in a local JSON file.
+
 ```bash
 npm run install:all         # root (API) deps + client deps
 
 # Option A — one server, prebuilt UI:
 npm run build               # build the client
-npm start                   # http://localhost:3001  (API + UI, file DB dev.db)
+npm start                   # http://localhost:3001
 
 # Option B — hot reload (two terminals):
 npm run dev:server          # API on :3001
 npm run dev:client          # Vite on :5173 (proxies /api -> :3001)
 ```
 
-In dev the database is a local file (`dev.db`) created automatically — no cloud account needed.
+`data/store.json` is created automatically on first use.
 
 ### Demo credentials
 
@@ -43,48 +45,45 @@ In dev the database is a local file (`dev.db`) created automatically — no clou
 | `admin`  | `demo1234`  |
 | `ujjwal` | `pilot2026` |
 
-Seeded on first run (passwords hashed). Change/add users in the seed block of [api/db.js](api/db.js).
+Defined (hashed) in [api/index.js](api/index.js). Override the passwords with the
+`ADMIN_PASSWORD` / `UJJWAL_PASSWORD` env vars before sharing a deployment.
 
 ---
 
 ## Deploying to Vercel
 
-Vercel is serverless, so the app uses Turso (hosted libSQL) instead of a local SQLite file.
+The original `vite: command not found` build error is fixed by [vercel.json](vercel.json),
+which installs the client's deps before building. The remaining step is storage:
+Vercel's filesystem is read-only, so production data lives in a free KV store.
 
-### 1. Create a Turso database (free)
+### 1. Add a KV store (one click, no separate account)
 
-Easiest is the Vercel Marketplace integration, or the Turso CLI:
+In your Vercel project → **Storage** → create an **Upstash for Redis** (KV) store and
+connect it to the project. Vercel injects the connection env vars automatically
+(`KV_REST_API_URL` + `KV_REST_API_TOKEN`).
 
-```bash
-# install CLI + sign up
-curl -sSfL https://get.tur.so/install.sh | bash
-turso auth signup
-
-# create a db and get its credentials
-turso db create incedo-client-prep
-turso db show incedo-client-prep --url          # -> libsql://...  (TURSO_DATABASE_URL)
-turso db tokens create incedo-client-prep       # -> a token       (TURSO_AUTH_TOKEN)
-```
-
-### 2. Set environment variables in Vercel
+### 2. Set one more env variable
 
 Project → **Settings → Environment Variables**:
 
-| Name                  | Value                                   |
-|-----------------------|-----------------------------------------|
-| `TURSO_DATABASE_URL`  | `libsql://…` from step 1                 |
-| `TURSO_AUTH_TOKEN`    | the token from step 1                    |
-| `JWT_SECRET`          | any long random string                  |
+| Name         | Value                  |
+|--------------|------------------------|
+| `JWT_SECRET` | any long random string |
+
+(Optional: `ADMIN_PASSWORD`, `UJJWAL_PASSWORD` to change the demo logins.)
 
 ### 3. Deploy
 
-Import the repo in Vercel and deploy (or `vercel --prod`). `vercel.json` already sets:
+Import the repo and deploy (or `vercel --prod`). `vercel.json` handles the rest:
 
-- **Build command:** `npm --prefix client install && npm --prefix client run build`
-  (this fixes the original `vite: command not found` error — the client's deps are now installed during the build)
-- **Output directory:** `client/dist`
-- **Rewrite:** `/api/(.*) → /api` so all API calls hit the Express function
+- **Build:** `npm --prefix client install && npm --prefix client run build`
+- **Output:** `client/dist`
+- **Rewrite:** `/api/(.*) → /api` so API calls reach the Express function
 
-The schema and demo users/entries are created automatically on the first request.
+The seed entries are written to KV on the first request.
 
-> **Note:** rotate the demo passwords and set a strong `JWT_SECRET` before sharing the deployment. Cookies are `Secure` + `httpOnly` in production.
+> If no KV store is connected in production, the API will error on write (there's no
+> disk to fall back to). Locally it always uses the JSON file, so `npm start` just works.
+>
+> **Note:** this simple store rewrites the whole entries list on each change — fine for a
+> small team tracker, but not built for heavy concurrent editing.

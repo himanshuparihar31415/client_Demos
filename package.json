@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Incedo Client Prep — demo & pilot tracker. Vite React SPA + Express serverless API on Turso (libSQL).",
+  "description": "Incedo Client Prep — demo & pilot tracker. Vite React SPA + Express serverless API with a light JSON/KV store.",
   "scripts": {
     "install:all": "npm install && npm --prefix client install",
     "build": "npm --prefix client install && npm --prefix client run build",
@@ -12,7 +12,7 @@
     "dev:client": "npm --prefix client run dev"
   },
   "dependencies": {
-    "@libsql/client": "^0.14.0",
+    "@upstash/redis": "^1.34.3",
     "bcryptjs": "^2.4.3",
     "cookie": "^0.6.0",
     "express": "^4.21.2",
