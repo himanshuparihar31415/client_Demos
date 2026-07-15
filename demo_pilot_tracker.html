@@ -67,6 +67,17 @@
     letter-spacing:1px;
     text-align:right;
   }
+  .session{
+    display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:6px;
+    font-size:11px;color:var(--ink-dim);
+  }
+  .session .who{letter-spacing:0.5px;}
+  .signout{
+    background:none;border:1px solid var(--line-strong);color:var(--ink-dim);
+    font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    padding:4px 10px;border-radius:2px;cursor:pointer;
+  }
+  .signout:hover{color:var(--rust);border-color:#e4b6a9;}
 
   .board-alert{
     background:var(--amber-soft);
@@ -228,7 +239,13 @@
       <h1>Departures</h1>
       <div class="sub">Client Demos &amp; Pilots Board</div>
     </div>
-    <div class="clock" id="clockLine"></div>
+    <div>
+      <div class="clock" id="clockLine"></div>
+      <div class="session">
+        <span class="who" id="whoLine"></span>
+        <button class="signout" onclick="signOut()">Sign Out</button>
+      </div>
+    </div>
   </div>
 
   <div class="board-alert" id="alertBox">
@@ -302,6 +319,20 @@
 </div>
 
 <script>
+const SESSION_KEY = 'auth:session';
+
+// Require sign-in: bounce to the login page if there's no active session.
+let session = null;
+try{ session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); }catch(e){}
+if(!session || !session.user){
+  window.location.replace('login.html');
+}
+
+function signOut(){
+  sessionStorage.removeItem(SESSION_KEY);
+  window.location.replace('login.html');
+}
+
 const STORAGE_KEY = 'entries:board';
 let entries = [];
 
@@ -434,6 +465,10 @@ function renderClock(){
   const el = document.getElementById('clockLine');
   const now = new Date();
   el.textContent = now.toLocaleDateString('en-GB', {weekday:'short', day:'2-digit', month:'short', year:'numeric'});
+  const who = document.getElementById('whoLine');
+  if(who && session && session.user){
+    who.textContent = 'Signed in as ' + session.user;
+  }
 }
 
 function escapeHtml(str){
