@@ -1,7 +1,10 @@
 node_modules/
 client/dist/
-server/data/*.db
-server/data/*.db-*
+*.db
+*.db-*
+dev.db
 .env
+.env*.local
+.vercel
 *.log
 .DS_Store

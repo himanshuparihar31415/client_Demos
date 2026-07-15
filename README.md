@@ -1,25 +1,40 @@
-# Departures — Demos & Pilots Tracker
+# Incedo Client Prep
 
-A small full-stack web app for tracking client demos and pilots.
+A tracker for client demos & pilots — Azure DevOps-style UI.
 
-- **Backend:** Node + Express REST API, SQLite (built-in `node:sqlite`), real password hashing (bcrypt), server-side sessions.
-- **Frontend:** React single-page app (Vite), talking to the API.
-- **Data:** stored on the server in SQLite, so it's shared across browsers and devices (not per-browser like the old standalone HTML version).
+- **Frontend:** React SPA (Vite) — served as static files.
+- **Backend:** Express running as a **Vercel serverless function** under `/api`.
+- **Database:** **Turso** (libSQL) — SQLite-compatible, works as a local file in dev and over HTTP in production.
+- **Auth:** bcrypt-hashed passwords + a stateless **JWT stored in an httpOnly cookie** (works on serverless — no session store needed).
 
-## Prerequisites
+## Repo layout
 
-- Node.js 22.5+ (uses the built-in `node:sqlite`; developed on Node 24)
-
-## Setup
-
-```bash
-# from the repo root
-npm run install:all      # installs server + client dependencies
-npm run build            # builds the React client into client/dist
-npm start                # starts the server + serves the app at http://localhost:3001
+```
+client_Demos/
+├── api/                 Serverless Express app (Vercel functions)
+│   ├── index.js         routes: auth + entries CRUD (exported Express app)
+│   └── db.js            libSQL client, schema, seeding
+├── client/              React SPA (Vite)  ->  builds to client/dist
+├── dev-server.js        local runner (hosts api/ on :3001, serves client/dist)
+├── vercel.json          build command, output dir, /api rewrite
+└── package.json         API dependencies + scripts
 ```
 
-Then open **http://localhost:3001**.
+## Local development
+
+```bash
+npm run install:all         # root (API) deps + client deps
+
+# Option A — one server, prebuilt UI:
+npm run build               # build the client
+npm start                   # http://localhost:3001  (API + UI, file DB dev.db)
+
+# Option B — hot reload (two terminals):
+npm run dev:server          # API on :3001
+npm run dev:client          # Vite on :5173 (proxies /api -> :3001)
+```
+
+In dev the database is a local file (`dev.db`) created automatically — no cloud account needed.
 
 ### Demo credentials
 
@@ -28,55 +43,48 @@ Then open **http://localhost:3001**.
 | `admin`  | `demo1234`  |
 | `ujjwal` | `pilot2026` |
 
-These users are seeded automatically the first time the server runs (passwords are hashed
-in the database). Change or add users by editing the seed block in [server/db.js](server/db.js).
+Seeded on first run (passwords hashed). Change/add users in the seed block of [api/db.js](api/db.js).
 
-## Development (hot reload)
+---
 
-Run the API and the Vite dev server in two terminals:
+## Deploying to Vercel
+
+Vercel is serverless, so the app uses Turso (hosted libSQL) instead of a local SQLite file.
+
+### 1. Create a Turso database (free)
+
+Easiest is the Vercel Marketplace integration, or the Turso CLI:
 
 ```bash
-npm run dev:server       # Express on :3001 (auto-restarts on change)
-npm run dev:client       # Vite on :5173, proxies /api to :3001
+# install CLI + sign up
+curl -sSfL https://get.tur.so/install.sh | bash
+turso auth signup
+
+# create a db and get its credentials
+turso db create incedo-client-prep
+turso db show incedo-client-prep --url          # -> libsql://...  (TURSO_DATABASE_URL)
+turso db tokens create incedo-client-prep       # -> a token       (TURSO_AUTH_TOKEN)
 ```
 
-Open **http://localhost:5173** for the hot-reloading dev experience.
+### 2. Set environment variables in Vercel
 
-## Project layout
+Project → **Settings → Environment Variables**:
 
-```
-client_Demos/
-├── server/              Express API + SQLite
-│   ├── index.js         routes: auth + entries CRUD, serves built client
-│   ├── db.js            schema, seeding, DB connection
-│   └── data/app.db      SQLite database (gitignored, created on first run)
-├── client/              React SPA (Vite)
-│   └── src/
-│       ├── App.jsx      auth gate — shows Login or Board
-│       ├── Login.jsx    sign-in form
-│       ├── Board.jsx    the tracker board (list, alerts, add/edit/delete)
-│       ├── api.js       fetch wrapper for the API
-│       └── styles.css   white theme
-└── package.json         root scripts (install:all, build, start, dev:*)
-```
+| Name                  | Value                                   |
+|-----------------------|-----------------------------------------|
+| `TURSO_DATABASE_URL`  | `libsql://…` from step 1                 |
+| `TURSO_AUTH_TOKEN`    | the token from step 1                    |
+| `JWT_SECRET`          | any long random string                  |
 
-## API
+### 3. Deploy
 
-All `/api/entries` routes require an authenticated session cookie.
+Import the repo in Vercel and deploy (or `vercel --prod`). `vercel.json` already sets:
 
-| Method | Path                | Purpose                    |
-|--------|---------------------|----------------------------|
-| POST   | `/api/login`        | Sign in                    |
-| POST   | `/api/logout`       | Sign out                   |
-| GET    | `/api/me`           | Current session user       |
-| GET    | `/api/entries`      | List all entries           |
-| POST   | `/api/entries`      | Create an entry            |
-| PUT    | `/api/entries/:id`  | Update an entry            |
-| DELETE | `/api/entries/:id`  | Delete an entry            |
+- **Build command:** `npm --prefix client install && npm --prefix client run build`
+  (this fixes the original `vite: command not found` error — the client's deps are now installed during the build)
+- **Output directory:** `client/dist`
+- **Rewrite:** `/api/(.*) → /api` so all API calls hit the Express function
 
-## Notes
+The schema and demo users/entries are created automatically on the first request.
 
-- Set `SESSION_SECRET` (env var) to a strong random value in any real deployment; the
-  default is a dev placeholder. Set `PORT` to change the port (default `3001`).
-- The older `login.html` / `demo_pilot_tracker.html` are the original standalone
-  (browser-only, `localStorage`) prototype and are kept for reference.
+> **Note:** rotate the demo passwords and set a strong `JWT_SECRET` before sharing the deployment. Cookies are `Secure` + `httpOnly` in production.

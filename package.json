@@ -2,12 +2,20 @@
   "name": "client-demos",
   "version": "1.0.0",
   "private": true,
-  "description": "Demos & Pilots tracker — Express + SQLite API with a React SPA",
+  "type": "module",
+  "description": "Incedo Client Prep — demo & pilot tracker. Vite React SPA + Express serverless API on Turso (libSQL).",
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
-    "build": "npm --prefix client run build",
-    "start": "npm --prefix server start",
-    "dev:server": "npm --prefix server run dev",
+    "install:all": "npm install && npm --prefix client install",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "node dev-server.js",
+    "dev:server": "node --watch dev-server.js",
     "dev:client": "npm --prefix client run dev"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "bcryptjs": "^2.4.3",
+    "cookie": "^0.6.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
   }
 }
