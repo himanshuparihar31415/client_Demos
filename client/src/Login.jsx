@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from './api.js';
 
 const logo = (
-  <svg viewBox="0 0 24 24" fill="#0078d4" width="24" height="24">
+  <svg viewBox="0 0 24 24" fill="#ffa24d" width="24" height="24">
     <path d="M21 5.5v10.7l-4.4 3.6-6.8-2.5v2.4L6.1 22 3 15.4V8.9l3.7-1.5L12 2l9 3.5zM6.1 8.9v6.2l4.7 1.7V6.5L6.1 8.9zm5.9-2.6l6 2.2v6.9l-6 .6V6.3z" />
   </svg>
 );
