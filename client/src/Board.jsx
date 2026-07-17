@@ -35,6 +35,8 @@ export default function Board({ user, onLogout }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(new Date());
   const [view, setView] = useState('overview');
 
@@ -78,12 +80,14 @@ export default function Board({ user, onLogout }) {
 
   function openNew(prefillDate) {
     setEditId(null);
+    setSaveError('');
     setForm({ ...EMPTY, date: typeof prefillDate === 'string' ? prefillDate : '' });
     setPanelOpen(true);
   }
 
   function openEdit(e) {
     setEditId(e.id);
+    setSaveError('');
     setForm({
       client: e.client,
       type: e.type,
@@ -97,17 +101,21 @@ export default function Board({ user, onLogout }) {
 
   async function save(e) {
     e.preventDefault();
+    setSaveError('');
     if (!form.client.trim()) {
-      alert('Client name is required.');
+      setSaveError('Client name is required.');
       return;
     }
+    setSaving(true);
     try {
       if (editId) await api.updateEntry(editId, form);
       else await api.createEntry(form);
       setPanelOpen(false);
       await load();
-    } catch (e) {
-      alert(e.message);
+    } catch (err) {
+      setSaveError(err.message || 'Could not save. Please try again.');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -222,6 +230,9 @@ export default function Board({ user, onLogout }) {
               <button type="button" className="panel-close" onClick={() => setPanelOpen(false)}>✕</button>
             </div>
             <div className="panel-body">
+              {saveError && (
+                <div className="ado-msgbar error"><span className="bar-icon">⚠</span><div>{saveError}</div></div>
+              )}
               <div className="field">
                 <label>Client</label>
                 <input
@@ -265,7 +276,7 @@ export default function Board({ user, onLogout }) {
               </div>
             </div>
             <div className="panel-foot">
-              <button type="submit" className="btn-solid">Save</button>
+              <button type="submit" className="btn-solid" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
               <button type="button" className="btn-ghost" onClick={() => setPanelOpen(false)}>Cancel</button>
             </div>
           </form>

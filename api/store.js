@@ -10,7 +10,11 @@ import { dirname, join } from 'node:path';
 const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const useKV = !!(KV_URL && KV_TOKEN);
+const ON_VERCEL = !!process.env.VERCEL; // read-only filesystem, no local file possible
 const KEY = 'entries';
+
+const NO_STORAGE_MSG =
+  'No storage is connected. Add a Vercel KV (Upstash) store to this project and redeploy so changes can be saved.';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FILE = join(__dirname, '..', 'data', 'store.json');
@@ -42,6 +46,9 @@ export async function getEntries() {
     }
     return data;
   }
+  // On Vercel with no KV connected there is no writable disk — show seed data
+  // read-only rather than crashing, and let saves report a clear error.
+  if (ON_VERCEL) return SEED;
   if (!existsSync(FILE)) {
     await mkdir(dirname(FILE), { recursive: true });
     await writeFile(FILE, JSON.stringify(SEED, null, 2));
@@ -55,6 +62,11 @@ export async function saveEntries(entries) {
     const r = await redis();
     await r.set(KEY, entries);
     return;
+  }
+  if (ON_VERCEL) {
+    const err = new Error(NO_STORAGE_MSG);
+    err.status = 503;
+    throw err;
   }
   await mkdir(dirname(FILE), { recursive: true });
   await writeFile(FILE, JSON.stringify(entries, null, 2));

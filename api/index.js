@@ -19,6 +19,11 @@ const USERS = [
 const app = express();
 app.use(express.json());
 
+// Express 4 does not forward errors thrown in async handlers — without this
+// wrapper a rejected store call would hang the request (no response) instead of
+// returning an error. Wrap every async route with it.
+const h = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 // --- auth helpers (stateless JWT in an httpOnly cookie) ---
 function setAuthCookie(res, payload) {
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: MAX_AGE });
@@ -78,11 +83,11 @@ app.get('/api/me', (req, res) => {
 });
 
 // --- entries CRUD (read-modify-write of the light JSON store) ---
-app.get('/api/entries', requireAuth, async (req, res) => {
+app.get('/api/entries', requireAuth, h(async (req, res) => {
   res.json(await getEntries());
-});
+}));
 
-app.post('/api/entries', requireAuth, async (req, res) => {
+app.post('/api/entries', requireAuth, h(async (req, res) => {
   const e = sanitizeEntry(req.body);
   if (!e.client) return res.status(400).json({ error: 'Client name is required' });
   const entries = await getEntries();
@@ -91,9 +96,9 @@ app.post('/api/entries', requireAuth, async (req, res) => {
   entries.push(entry);
   await saveEntries(entries);
   res.status(201).json(entry);
-});
+}));
 
-app.put('/api/entries/:id', requireAuth, async (req, res) => {
+app.put('/api/entries/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const e = sanitizeEntry(req.body);
   if (!e.client) return res.status(400).json({ error: 'Client name is required' });
@@ -103,14 +108,14 @@ app.put('/api/entries/:id', requireAuth, async (req, res) => {
   entries[idx] = { ...entries[idx], ...e };
   await saveEntries(entries);
   res.json(entries[idx]);
-});
+}));
 
-app.delete('/api/entries/:id', requireAuth, async (req, res) => {
+app.delete('/api/entries/:id', requireAuth, h(async (req, res) => {
   const id = Number(req.params.id);
   const entries = await getEntries();
   await saveEntries(entries.filter((x) => Number(x.id) !== id));
   res.json({ ok: true });
-});
+}));
 
 function sanitizeEntry(body = {}) {
   return {
@@ -126,7 +131,7 @@ function sanitizeEntry(body = {}) {
 // --- error handler ---
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ error: 'Server error' });
+  res.status(err.status || 500).json({ error: err.message || 'Server error' });
 });
 
 export default app;
