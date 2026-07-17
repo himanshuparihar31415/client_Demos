@@ -7,8 +7,16 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Vercel's storage integrations may prefix the injected env vars with the store
+// name (e.g. client_demo_KV_REST_API_URL). Match by suffix so any prefix works.
+function findEnv(suffix) {
+  if (process.env[suffix]) return process.env[suffix];
+  const key = Object.keys(process.env).find((k) => k.endsWith(suffix) && process.env[k]);
+  return key ? process.env[key] : undefined;
+}
+
+const KV_URL = findEnv('KV_REST_API_URL') || findEnv('UPSTASH_REDIS_REST_URL');
+const KV_TOKEN = findEnv('KV_REST_API_TOKEN') || findEnv('UPSTASH_REDIS_REST_TOKEN');
 const useKV = !!(KV_URL && KV_TOKEN);
 const ON_VERCEL = !!process.env.VERCEL; // read-only filesystem, no local file possible
 const KEY = 'entries';
